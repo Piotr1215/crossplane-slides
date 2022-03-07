@@ -1,0 +1,14 @@
+apiVersion: storage.azure.crossplane.io/v1alpha3
+kind: Account
+metadata:
+  name: supportingsa123rfbt
+spec:
+  resourceGroupName: supporting-sa-ert54
+  storageAccountSpec:
+    kind: "Storage"
+    location: "West Europe"
+    sku:
+      name: "Standard_LRS"
+  writeConnectionSecretToRef:
+    name: azure-sa-secret
+    namespace: default

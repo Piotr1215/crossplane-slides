@@ -1,0 +1,12 @@
+apiVersion: acmeplatform.cloud/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: team1-db
+  namespace: team1
+spec:
+  parameters:
+    storageGB: 20
+    networkRef:
+      id: platform-ref-aws-network
+  writeConnectionSecretToRef:
+    name: my-db-conn-team1

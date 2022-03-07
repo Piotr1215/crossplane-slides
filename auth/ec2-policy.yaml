@@ -1,0 +1,29 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-large-instances
+  annotations:
+    policies.kyverno.io/title: Disallow Large VM Instances
+    policies.kyverno.io/category: Cost
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Cluster
+    policies.kyverno.io/description: >-
+      Disallow Large VM Instances
+spec:
+  validationFailureAction: enforce
+  rules:
+  - name: check-version-number
+    match:
+      resources:
+        kinds:
+        - VirtualMachineInstance
+    preconditions:
+    - key: "{{request.object.metadata.namespace}}"
+      operator: Equals
+      value: team1
+    validate:
+      message: "This team cannot create large VM instance due to cost reasons, large VM instances can only be created by team2"
+      pattern:
+        spec:
+          parameters:
+            instanceSize: "!large"

@@ -1,0 +1,6 @@
+apiVersion: acmeplatform.cloud/v1alpha1
+kind: Network
+metadata:
+  name: network
+spec:
+  id: platform-ref-aws-network

@@ -1,0 +1,206 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: compositenetworks.acmeplatform.cloud
+spec:
+  claimNames:
+    kind: Network
+    plural: networks
+  group: acmeplatform.cloud
+  names:
+    kind: CompositeNetwork
+    plural: compositenetworks
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: ID of this Network that other objects will use to refer to it.
+              required:
+                - id
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: composite-network
+  labels:
+    provider: aws
+spec:
+  writeConnectionSecretsToNamespace: devops-team
+  compositeTypeRef:
+    apiVersion: acmeplatform.cloud/v1alpha1
+    kind: CompositeNetwork
+  resources:
+    - base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: VPC
+        spec:
+          forProvider:
+            region: eu-central-1
+            cidrBlock: 192.168.0.0/16
+            enableDnsSupport: true
+            enableDnsHostNames: true
+      patches:
+        - fromFieldPath: spec.id
+          toFieldPath: metadata.labels[networks.aws.platformref.crossplane.io/network-id]
+    - base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: InternetGateway
+        spec:
+          forProvider:
+            region: eu-central-1
+            vpcIdSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.id
+          toFieldPath: metadata.labels[networks.aws.platformref.crossplane.io/network-id]
+    - base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            zone: eu-central-1a
+            access: public
+        spec:
+          forProvider:
+            region: eu-central-1
+            mapPublicIPOnLaunch: true
+            cidrBlock: 192.168.0.0/18
+            vpcIdSelector:
+              matchControllerRef: true
+            availabilityZone: eu-central-1a
+            tags:
+              - key: kubernetes.io/role/elb
+                value: "1"
+      patches:
+        - fromFieldPath: spec.id
+          toFieldPath: metadata.labels[networks.aws.platformref.crossplane.io/network-id]
+    - base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            zone: eu-central-1b
+            access: public
+        spec:
+          forProvider:
+            region: eu-central-1
+            mapPublicIPOnLaunch: true
+            cidrBlock: 192.168.64.0/18
+            vpcIdSelector:
+              matchControllerRef: true
+            availabilityZone: eu-central-1b
+            tags:
+              - key: kubernetes.io/role/elb
+                value: "1"
+      patches:
+        - fromFieldPath: spec.id
+          toFieldPath: metadata.labels[networks.aws.platformref.crossplane.io/network-id]
+    - base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            zone: eu-central-1a
+            access: private
+        spec:
+          forProvider:
+            region: eu-central-1
+            cidrBlock: 192.168.128.0/18
+            vpcIdSelector:
+              matchControllerRef: true
+            availabilityZone: eu-central-1a
+            tags:
+              - value: shared
+                key: ""
+              - key: kubernetes.io/role/internal-elb
+                value: "1"
+      patches:
+        - fromFieldPath: spec.id
+          toFieldPath: metadata.labels[networks.aws.platformref.crossplane.io/network-id]
+    - base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            zone: eu-central-1b
+            access: private
+        spec:
+          forProvider:
+            region: eu-central-1
+            cidrBlock: 192.168.192.0/18
+            vpcIdSelector:
+              matchControllerRef: true
+            availabilityZone: eu-central-1b
+            tags:
+              - value: shared
+                key: ""
+              - key: kubernetes.io/role/internal-elb
+                value: "1"
+      patches:
+        - fromFieldPath: spec.id
+          toFieldPath: metadata.labels[networks.aws.platformref.crossplane.io/network-id]
+    - base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: RouteTable
+        spec:
+          forProvider:
+            region: eu-central-1
+            vpcIdSelector:
+              matchControllerRef: true
+            routes:
+              - destinationCidrBlock: 0.0.0.0/0
+                gatewayIdSelector:
+                  matchControllerRef: true
+            associations:
+              - subnetIdSelector:
+                  matchControllerRef: true
+                  matchLabels:
+                    zone: eu-central-1a
+                    access: public
+              - subnetIdSelector:
+                  matchControllerRef: true
+                  matchLabels:
+                    zone: eu-central-1b
+                    access: public
+              - subnetIdSelector:
+                  matchControllerRef: true
+                  matchLabels:
+                    zone: eu-central-1a
+                    access: private
+              - subnetIdSelector:
+                  matchControllerRef: true
+                  matchLabels:
+                    zone: eu-central-1b
+                    access: private
+      patches:
+        - fromFieldPath: spec.id
+          toFieldPath: metadata.labels[networks.aws.platformref.crossplane.io/network-id]
+    - base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: SecurityGroup
+        spec:
+          forProvider:
+            region: eu-central-1
+            vpcIdSelector:
+              matchControllerRef: true
+            groupName: platform-ref-aws-cluster
+            description: Allow access to PostgreSQL
+            ingress:
+              - fromPort: 5432
+                toPort: 5432
+                ipProtocol: tcp
+                ipRanges:
+                  - cidrIp: 0.0.0.0/0
+                    description: Everywhere
+      patches:
+        - fromFieldPath: spec.id
+          toFieldPath: metadata.labels[networks.aws.platformref.crossplane.io/network-id]

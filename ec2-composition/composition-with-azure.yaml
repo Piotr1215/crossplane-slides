@@ -1,0 +1,154 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xvminstances-with-support.aws.vm.platform.org
+  labels:
+    provider: aws-azure
+    vpc: new
+spec:
+  compositeTypeRef:
+    apiVersion: vm.platform.org/v1alpha1
+    kind: XVirtualMachineInstance
+  resources:
+    - name: vminstance
+      base:
+        apiVersion: ec2.aws.crossplane.io/v1alpha1
+        kind: Instance
+        spec:
+          forProvider:
+            subnetIdSelector: 
+                matchControllerRef: true
+            region: eu-central-1
+            imageId: ami-0a49b025fffbbdac6
+            accociatePublicIpAddress: true
+            keyName: ec2-sandbox
+            securityGroupSelector:
+                matchControllerRef: true
+            publiclyAccessible: true
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+      patches:
+        - fromFieldPath: "metadata.uid"
+          toFieldPath: "spec.writeConnectionSecretToRef.name"
+        - fromFieldPath: "spec.parameters.instanceSize"
+          toFieldPath: "spec.forProvider.instanceType"
+          transforms:
+          - type: map
+            map:
+              small: "t2.micro"
+              medium: "m1.medium"
+              large: "m1.large"
+    - name: supportingsa
+      base:
+        apiVersion: storage.azure.crossplane.io/v1alpha3
+        kind: Account
+        metadata:
+          name: supportingsa123rfbt
+          annotations:
+            crossplane.io/external-name: supportingsa123rfbt
+        spec:
+          resourceGroupName: supporting-sa-ert54
+          accountName: supportingsa123rfbt
+          storageAccountSpec:
+            kind: "Storage"
+            location: "West Europe"
+            sku:
+              name: "Standard_LRS"
+          writeConnectionSecretToRef:
+            name: azure-sa-secret
+            namespace: default
+    - name: vpc
+      base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: VPC
+        metadata:
+          name: dev-vpc
+        spec:
+          forProvider:
+            region: eu-central-1
+            cidrBlock: 192.168.0.0/16
+            enableDnsSupport: true
+            enableDnsHostNames: true
+            tags:
+            - key: Env
+              value: Dev
+            - key: Owner
+              value: Platform Team
+            - key: Name
+              value: dev-vpc
+            instanceTenancy: default
+    - name: subnet-a
+      base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            zone: eu-central-1a
+        spec:
+          forProvider:
+            region: eu-central-1
+            cidrBlock: 192.168.64.0/18
+            vpcIdSelector:
+              matchControllerRef: true
+            availabilityZone: eu-central-1a
+    - name: subnet-b
+      base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            zone: eu-central-1b
+        spec:
+          forProvider:
+            region: eu-central-1
+            cidrBlock: 192.168.128.0/18
+            vpcIdSelector:
+              matchControllerRef: true
+            availabilityZone: eu-central-1b
+    - name: internetgateway
+      base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: InternetGateway
+        spec:
+          forProvider:
+            region: eu-central-1
+            vpcIdSelector:
+              matchControllerRef: true
+    - name: routetable
+      base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: RouteTable
+        spec:
+          forProvider:
+            region: eu-central-1
+            vpcIdSelector:
+              matchControllerRef: true
+            routes:
+              - destinationCidrBlock: 0.0.0.0/0
+                gatewayIdSelector:
+                  matchControllerRef: true
+            associations:
+              - subnetIdSelector:
+                  matchLabels:
+                    zone: eu-central-1a
+              - subnetIdSelector:
+                  matchLabels:
+                    zone: eu-central-1b
+    - name: securitygroup
+      base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: SecurityGroup
+        spec:
+          forProvider:
+            region: eu-central-1
+            vpcIdSelector:
+              matchControllerRef: true
+            groupName: crossplane-sg-ec2-platform
+            description: Allow ssh to EC2 Instance
+            ingress:
+              - fromPort: 22
+                toPort: 22
+                ipProtocol: tcp
+                ipRanges:
+                  - cidrIp: 0.0.0.0/0
+                    description: Everywhere

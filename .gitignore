@@ -1,0 +1,10 @@
+minikube.log
+creds.conf
+creds.json
+config.yaml
+*.xpkg
+eks-config.yaml
+/existing-resources/mysql-db.yaml.bak
+cluster-keys.json
+crossplane-azure-provider-key.json
+azure-provider-config.yaml

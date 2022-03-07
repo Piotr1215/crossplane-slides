@@ -1,0 +1,15 @@
+apiVersion: vm.platform.org/v1alpha1
+kind: VirtualMachineInstance
+metadata:
+  name: sample-ec2
+  namespace: team1
+spec:
+  parameters:
+    # small, medium, large
+    instanceSize: large
+  compositionSelector:
+    matchLabels:
+      provider: aws
+      vpc: new
+  writeConnectionSecretToRef:
+    name: ec2-conn

@@ -1,0 +1,15 @@
+apiVersion: vm.platform.org/v1alpha1
+kind: VirtualMachineInstance
+metadata:
+  name: sample-ec2-with-azure
+  namespace: default
+spec:
+  parameters:
+    # small, medium, large
+    instanceSize: small
+  compositionSelector:
+    matchLabels:
+      provider: aws-azure
+      vpc: new
+  writeConnectionSecretToRef:
+    name: ec2-conn-azure
